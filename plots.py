@@ -522,51 +522,54 @@ def temperature_plot(df, title: str) -> BinaryIO:
     mood = _mood_for(max_temp)
 
     fig, ax = plt.subplots(figsize=(10, 6), dpi=200)
-    ax.set_facecolor(_bg_tint(max_temp))
+    try:
+        ax.set_facecolor(_bg_tint(max_temp))
 
-    _draw_decor(ax, mood)
+        _draw_decor(ax, mood)
 
-    # Shade the "tönkkä achieved" zone above threshold
-    ax.axhspan(TONKKA_THRESHOLD, 50, color="#ff3b30", alpha=0.08, zorder=0)
+        # Shade the "tönkkä achieved" zone above threshold
+        ax.axhspan(TONKKA_THRESHOLD, 50, color="#ff3b30", alpha=0.08, zorder=0)
 
-    # Main temperature line with marker dots + white halo
-    ax.plot(
-        df["time"], df["temp"],
-        color="#c8102e", linewidth=2.6,
-        marker="o", markersize=3.2, markeredgecolor="white", markeredgewidth=0.4,
-        label="Helsinki-Vantaa, EFHK", zorder=3,
-        path_effects=[pe.Stroke(linewidth=4.5, foreground="white", alpha=0.7), pe.Normal()],
-    )
+        # Main temperature line with marker dots + white halo
+        ax.plot(
+            df["time"], df["temp"],
+            color="#c8102e", linewidth=2.6,
+            marker="o", markersize=3.2, markeredgecolor="white", markeredgewidth=0.4,
+            label="Helsinki-Vantaa, EFHK", zorder=3,
+            path_effects=[pe.Stroke(linewidth=4.5, foreground="white", alpha=0.7), pe.Normal()],
+        )
 
-    # Tönkkä fill
-    ax.fill_between(
-        df["time"], df["temp"], TONKKA_THRESHOLD,
-        where=(df["temp"] >= TONKKA_THRESHOLD),
-        interpolate=True, color="#ff3b30", alpha=0.35, zorder=2,
-        label="Tönkkä!",
-    )
+        # Tönkkä fill
+        ax.fill_between(
+            df["time"], df["temp"], TONKKA_THRESHOLD,
+            where=(df["temp"] >= TONKKA_THRESHOLD),
+            interpolate=True, color="#ff3b30", alpha=0.35, zorder=2,
+            label="Tönkkä!",
+        )
 
-    # Threshold reference
-    ax.axhline(TONKKA_THRESHOLD, ls="--", color="black", linewidth=1.5,
-               label=f"Pääpäivä ({TONKKA_THRESHOLD:.0f}°C)", zorder=2)
+        # Threshold reference
+        ax.axhline(TONKKA_THRESHOLD, ls="--", color="black", linewidth=1.5,
+                   label=f"Pääpäivä ({TONKKA_THRESHOLD:.0f}°C)", zorder=2)
 
-    # Annotate the peak
-    max_idx = df["temp"].idxmax()
-    max_time = df.loc[max_idx, "time"]
-    ax.annotate(
-        f"{max_temp:.1f}°C",
-        xy=(max_time, max_temp),
-        xytext=(0, 14), textcoords="offset points",
-        fontsize=10, fontweight="bold", ha="center", zorder=5,
-        bbox={"boxstyle": "round,pad=0.35", "fc": "#ffeb3b",
-              "ec": "#2b1e14", "lw": 1.2, "alpha": 0.95},
-    )
+        # Annotate the peak
+        max_idx = df["temp"].idxmax()
+        max_time = df.loc[max_idx, "time"]
+        ax.annotate(
+            f"{max_temp:.1f}°C",
+            xy=(max_time, max_temp),
+            xytext=(0, 14), textcoords="offset points",
+            fontsize=10, fontweight="bold", ha="center", zorder=5,
+            bbox={"boxstyle": "round,pad=0.35", "fc": "#ffeb3b",
+                  "ec": "#2b1e14", "lw": 1.2, "alpha": 0.95},
+        )
 
-    _style_axes(ax, title)
+        _style_axes(ax, title)
 
-    _draw_mascot(fig, mood)
+        _draw_mascot(fig, mood)
 
-    return _render(fig, title)
+        return _render(fig, title)
+    finally:
+        plt.close(fig)
 
 
 def _style_axes(ax, title: str) -> None:
@@ -585,21 +588,23 @@ def _style_axes(ax, title: str) -> None:
 
 
 def _render(fig, title: str) -> BinaryIO:
-    """Save the figure to a BytesIO and close it."""
+    """Save the figure to a BytesIO. Caller is responsible for closing `fig`."""
     bio = io.BytesIO()
     bio.name = f"{title}.png"
     fig.savefig(bio, format="png", bbox_inches="tight", dpi=200)
-    plt.close(fig)
     return bio
 
 
 def _placeholder(title: str) -> BinaryIO:
     """Fallback image when no data is available."""
     fig, ax = plt.subplots(figsize=(8, 5), dpi=200)
-    ax.text(0.5, 0.5, "Ei tietoja saatavilla",
-            ha="center", va="center", transform=ax.transAxes, fontsize=16)
-    ax.set_title(title)
-    return _render(fig, title)
+    try:
+        ax.text(0.5, 0.5, "Ei tietoja saatavilla",
+                ha="center", va="center", transform=ax.transAxes, fontsize=16)
+        ax.set_title(title)
+        return _render(fig, title)
+    finally:
+        plt.close(fig)
 
 
 @cached(cache_history)
