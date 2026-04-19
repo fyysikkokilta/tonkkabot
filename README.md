@@ -17,16 +17,6 @@ Tonkkabot is a Telegram bot that tracks the temperature at Helsinki-Vantaa (EFHK
 - `/history [hours]` - Get temperature history (default: 24 hours, max: 24 hours)
 - `/forecast [hours]` - Get temperature forecast (default: 48 hours, max: 48 hours)
 
-## Recent Upgrades
-
-This bot has been upgraded to use:
-
-- **Latest python-telegram-bot (v22.3)** with modern async/await API
-- **Improved error handling** for better reliability
-- **Enhanced plotting** with better styling and readability
-- **Optimized dependencies** - removed unused packages
-- **Better code structure** with type hints and documentation
-
 ## Installation
 
 ### Prerequisites
@@ -56,7 +46,7 @@ pip install -r requirements.txt
 cp bot.env.example bot.env
 
 # Edit bot.env and add your Telegram bot token
-echo "TONKKA_BOT_TOKEN=your_bot_token_here" > bot.env
+echo "BOT_TOKEN=your_bot_token_here" > bot.env
 ```
 
 4. Run the bot:
@@ -78,28 +68,6 @@ docker build -t tonkkabot .
 ```bash
 docker run --env-file bot.env tonkkabot
 ```
-
-## Dependencies
-
-### Core Dependencies
-
-- `python-telegram-bot>=22.3` - Telegram Bot API wrapper
-- `requests>=2.31.0` - HTTP requests for weather data
-- `numpy>=1.24.0` - Numerical computing
-- `pandas>=2.0.0` - Data manipulation and analysis
-- `pytz>=2023.3` - Timezone handling
-- `cachetools>=5.3.0` - Caching for API responses
-- `matplotlib>=3.7.0` - Plotting library
-- `seaborn>=0.12.0` - Statistical data visualization
-
-### Removed Dependencies
-
-The following unused packages have been removed:
-
-- APScheduler (replaced by telegram job queue)
-- scipy (not used)
-- tornado (not used)
-- Various matplotlib dependencies (handled automatically by pip)
 
 ## Data Sources
 
