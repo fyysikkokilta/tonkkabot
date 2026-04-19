@@ -177,7 +177,7 @@ def fetch_data(hourdelta: Optional[int] = None) -> pd.DataFrame:
         df = pd.DataFrame(data_array, columns=["lat", "lon", "time", "temp"])
         df["temp"] = df["temp"].astype(float)
         df["time"] = pd.to_datetime(
-            df["time"], unit="s", origin="unix", utc=True
+            pd.to_numeric(df["time"]), unit="s", origin="unix", utc=True
         ).dt.tz_convert("Europe/Helsinki")
 
         record_possible_tonkka(df)
