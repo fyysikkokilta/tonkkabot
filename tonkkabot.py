@@ -19,7 +19,7 @@ BOT_INFO = (
 )
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.WARNING
 )
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,6 @@ async def flush_messages(bot: Bot) -> None:
     """Drop any updates queued during downtime so the bot doesn't spam on reconnect."""
     updates = await bot.get_updates()
     while updates:
-        logger.info("Flushing %d messages.", len(updates))
         time.sleep(1)
         updates = await bot.get_updates(updates[-1].update_id + 1)
 
@@ -120,8 +119,6 @@ async def post_init(app: Application) -> None:
     )
 
     app.add_error_handler(error)
-
-    logger.info("Post init done.")
 
 
 def main() -> None:
