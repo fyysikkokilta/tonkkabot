@@ -229,23 +229,23 @@ def _draw_mascot(fig, mood: str) -> None:
 
 
 _ARROW_BY_MOOD = {
-    MOOD_FREEZING: ((0.7, 0.6), (-0.3, -0.9), "#3a6fa0", 0.25),
+    MOOD_FREEZING: ((-0.85, 1.00), (-1.25, -0.45), "#3a6fa0", 0.75),
     MOOD_COLD: None,
-    MOOD_MILD: ((-0.6, -0.5), (0.8, 0.4), "#ffa64d", 0.5),
-    MOOD_WARM: ((-0.7, -0.6), (0.95, 0.7), "#ff8a3d", 0.7),
-    MOOD_TONKKA: ((-0.75, -0.7), (1.05, 1.1), "#ff2d1f", 0.9),
+    MOOD_MILD: ((-1.25, -0.40), (-0.85, 0.65), "#ffa64d", 0.80),
+    MOOD_WARM: ((-1.25, -0.55), (-0.85, 0.95), "#ff8a3d", 0.90),
+    MOOD_TONKKA: ((-1.28, -0.65), (-0.95, 1.20), "#ff2d1f", 0.95),
 }
 
 
 def _draw_mascot_arrow(ax, mood: str) -> None:
-    """Upward (or downward for freezing) arrow behind the mascot's head."""
+    """Upward (or downward for freezing) arrow beside the mascot."""
     arrow = _ARROW_BY_MOOD.get(mood)
     if arrow is None:
         return
     start, end, color, alpha = arrow
     ax.add_patch(FancyArrowPatch(
         start, end, arrowstyle="-|>", mutation_scale=22,
-        linewidth=3.5, color=color, alpha=alpha, zorder=1,
+        linewidth=3.5, color=color, alpha=alpha, zorder=2,
     ))
 
 
@@ -321,10 +321,10 @@ def _draw_mascot_props(ax, mood: str) -> None:
 
 
 _CAPTION = {
-    MOOD_FREEZING: ("not stonks", "#6aa7d6"),
+    MOOD_FREEZING: ("not tönks", "#6aa7d6"),
     MOOD_COLD: ("meh", "#888"),
-    MOOD_MILD: ("stonks?", "#e0a030"),
-    MOOD_WARM: ("stonks", "#ff8a3d"),
+    MOOD_MILD: ("tönks?", "#e0a030"),
+    MOOD_WARM: ("tönks", "#ff8a3d"),
     MOOD_TONKKA: ("TÖNKKÄ!", "#ff2d1f"),
 }
 
