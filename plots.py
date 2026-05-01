@@ -18,6 +18,7 @@ from matplotlib.patches import (
     Polygon,
 )
 from matplotlib.path import Path
+from matplotlib.transforms import Affine2D
 from pytz import timezone
 import seaborn as sns
 
@@ -31,12 +32,17 @@ HELSINKI = timezone("Europe/Helsinki")
 cache_history = TTLCache(maxsize=100, ttl=60)
 cache_forecast = TTLCache(maxsize=100, ttl=60)
 
-# Five mood bands, selected by the max temperature in the plotted window.
-MOOD_FREEZING = "freezing"  # < 0°C     — sad, tears, blue tint
-MOOD_COLD = "cold"          # 0–10°C    — bored, flat mouth
-MOOD_MILD = "mild"          # 10–15°C   — smirk, raised brow
-MOOD_WARM = "warm"          # 15–20°C   — grin, sparkles
-MOOD_TONKKA = "tonkka"      # ≥ 20°C    — ecstatic, dollar eyes, rocket
+# Mood bands, selected by the max temperature in the plotted window. MOOD_TROLL
+# is a sub-band of MOOD_WARM (19.7–20°C) reserved for years where tönkkä hasn't
+# been reached yet — the bot trolls the user for getting *so close*.
+MOOD_FREEZING = "freezing"  # < 0°C        — sad, tears, blue tint
+MOOD_COLD = "cold"          # 0–10°C       — bored, flat mouth
+MOOD_MILD = "mild"          # 10–15°C      — smirk, raised brow
+MOOD_WARM = "warm"          # 15–20°C      — grin, sparkles
+MOOD_TROLL = "troll"        # 19.7–20°C    — troll face, only pre-tönkkä
+MOOD_TONKKA = "tonkka"      # ≥ 20°C       — ecstatic, dollar eyes, rocket
+
+TROLL_GAP = 0.3  # max distance below TONKKA_THRESHOLD that triggers the troll face
 
 _MOOD_BREAKS = [
     (0.0, MOOD_FREEZING),
@@ -95,7 +101,7 @@ def _draw_decor(ax, mood: str) -> None:
     Markers are matplotlib vector paths so rendering doesn't depend on any
     font. Everything is laid out in axes-fraction coordinates.
     """
-    seeds = {"freezing": 1, "cold": 2, "mild": 3, "warm": 4, "tonkka": 5}
+    seeds = {"freezing": 1, "cold": 2, "mild": 3, "warm": 4, "troll": 6, "tonkka": 5}
     rng = random.Random(seeds[mood])
 
     def scatter_markers(count, marker, color, size_range, alpha):
@@ -119,6 +125,9 @@ def _draw_decor(ax, mood: str) -> None:
     elif mood == MOOD_WARM:
         scatter_markers(10, "*", "#ff8a3d", (80, 200), 0.35)
         scatter_markers(8, _WINE_GLASS_MARKER, "#722f37", (120, 280), 0.45)
+    elif mood == MOOD_TROLL:
+        scatter_markers(7, "*", "#ff8a3d", (60, 160), 0.30)
+        scatter_markers(5, _WINE_GLASS_MARKER, "#722f37", (100, 240), 0.35)
     elif mood == MOOD_TONKKA:
         scatter_markers(14, "*", "#ffb84d", (100, 260), 0.40)
         scatter_markers(16, _WINE_GLASS_MARKER, "#722f37", (200, 520), 0.50)
@@ -195,6 +204,7 @@ def _skin_color(mood: str) -> str:
         MOOD_COLD: "#cdbfaa",
         MOOD_MILD: "#d9bea0",
         MOOD_WARM: "#e4c8aa",
+        MOOD_TROLL: "#ece6da",  # troll-face off-white
         MOOD_TONKKA: "#eccf9c",
     }[mood]
 
@@ -221,8 +231,15 @@ def _draw_mascot(fig, mood: str) -> None:
     _draw_mascot_suit(ax, mood)
     _draw_mascot_head(ax, mood)
     _draw_eyes(ax, mood)
-    ax.plot([0.0, 0.06], [0.10, -0.06],
-            color="#8a6b4a", linewidth=1.5, solid_capstyle="round", zorder=5)
+    if mood == MOOD_TROLL:
+        # Troll-style nose: a short bridge with two visible nostril dots
+        ax.plot([-0.04, 0.0, 0.05], [0.06, 0.0, -0.06],
+                color="#5a4a3a", linewidth=1.5, solid_capstyle="round", zorder=5)
+        for nx in (-0.06, 0.07):
+            ax.add_patch(Circle((nx, -0.10), 0.022, color="#2b1e14", zorder=5))
+    else:
+        ax.plot([0.0, 0.06], [0.10, -0.06],
+                color="#8a6b4a", linewidth=1.5, solid_capstyle="round", zorder=5)
     _draw_mouth(ax, mood)
     _draw_mascot_props(ax, mood)
     _draw_mascot_caption(ax, mood)
@@ -233,6 +250,7 @@ _ARROW_BY_MOOD = {
     MOOD_COLD: None,
     MOOD_MILD: ((-1.25, -0.40), (-0.85, 0.65), "#ffa64d", 0.80),
     MOOD_WARM: ((-1.25, -0.55), (-0.85, 0.95), "#ff8a3d", 0.90),
+    MOOD_TROLL: ((-1.25, -0.55), (-0.85, 0.95), "#ff8a3d", 0.90),
     MOOD_TONKKA: ((-1.28, -0.65), (-0.95, 1.20), "#ff2d1f", 0.95),
 }
 
@@ -254,6 +272,7 @@ _TIE_COLOR = {
     MOOD_COLD: "#4a7ca8",
     MOOD_MILD: "#2970ff",
     MOOD_WARM: "#ff5a1f",
+    MOOD_TROLL: "#5a4a3a",
     MOOD_TONKKA: "#ffcf33",
 }
 
@@ -279,10 +298,14 @@ def _draw_mascot_suit(ax, mood: str) -> None:
 
 def _draw_mascot_head(ax, mood: str) -> None:
     """Head ellipse and cheek blush."""
-    ax.add_patch(Ellipse(
+    head = Ellipse(
         (0, 0.15), width=1.4, height=1.65,
         facecolor=_skin_color(mood), edgecolor="#2b1e14", linewidth=1.8, zorder=4,
-    ))
+    )
+    if mood == MOOD_TROLL:
+        # Slight tilt — the troll face is never perfectly upright
+        head.set_transform(Affine2D().rotate_deg_around(0, 0.15, 4) + ax.transData)
+    ax.add_patch(head)
     if mood == MOOD_FREEZING:
         cheek = "#7aaad6"
     elif mood in (MOOD_WARM, MOOD_TONKKA):
@@ -325,6 +348,7 @@ _CAPTION = {
     MOOD_COLD: ("meh", "#888"),
     MOOD_MILD: ("tönks?", "#e0a030"),
     MOOD_WARM: ("tönks", "#ff8a3d"),
+    MOOD_TROLL: ("trololol", "#5a4a3a"),
     MOOD_TONKKA: ("TÖNKKÄ!", "#ff2d1f"),
 }
 
@@ -398,6 +422,11 @@ _BROW_PLOTS = {
         ([-0.60, -0.32, -0.08], [0.42, 0.78, 0.60], 4.4),
         ([0.08, 0.32, 0.60], [0.60, 0.78, 0.42], 4.4),
     ],
+    MOOD_TROLL: [
+        # Asymmetric brows — left flatter, right more arched and raised
+        ([-0.55, -0.36, -0.18], [0.50, 0.55, 0.52], 2.6),
+        ([0.18, 0.38, 0.58], [0.54, 0.62, 0.56], 2.8),
+    ],
 }
 
 
@@ -434,6 +463,29 @@ def _draw_eyes(ax, mood: str) -> None:
                     solid_capstyle="round", solid_joinstyle="round", zorder=6)
         return
 
+    if mood == MOOD_TROLL:
+        # Asymmetric squinted crescents — left smaller/flatter, right bigger
+        # with more pronounced curl. Crow's feet differ per side.
+        # Left eye
+        ax.plot([-0.48, -0.40, -0.32, -0.24, -0.16],
+                [0.28, 0.32, 0.34, 0.32, 0.28],
+                color="#2b1e14", linewidth=2.6,
+                solid_capstyle="round", solid_joinstyle="round", zorder=6)
+        for dy_end in (0.05, -0.05):
+            ax.plot([-0.50, -0.60], [0.30, 0.30 + dy_end],
+                    color="#2b1e14", linewidth=1.3,
+                    solid_capstyle="round", zorder=6)
+        # Right eye — bigger arc
+        ax.plot([0.16, 0.24, 0.32, 0.40, 0.50],
+                [0.28, 0.34, 0.37, 0.34, 0.27],
+                color="#2b1e14", linewidth=2.8,
+                solid_capstyle="round", solid_joinstyle="round", zorder=6)
+        for dy_end in (0.09, 0.0, -0.08):
+            ax.plot([0.52, 0.64], [0.30, 0.30 + dy_end],
+                    color="#2b1e14", linewidth=1.3,
+                    solid_capstyle="round", zorder=6)
+        return
+
     # MILD: asymmetric squint + open eye
     if mood == MOOD_MILD:
         # Left eye open with pupil
@@ -456,6 +508,22 @@ def _draw_eyes(ax, mood: str) -> None:
         ))
         _draw_wine_glass(ax, (cx, 0.28), 0.22,
                          colors=("#8e1b2a", "#222"), zorder=7)
+
+
+def _draw_troll_teeth_band(ax, top, bottom) -> None:
+    """Draw teeth as quadrilaterals between two polylines of equal length.
+
+    Each consecutive pair of points on `top`/`bottom` becomes one tooth, so
+    both edges of the band can curve independently — letting the band hug
+    the upper lip on top while meeting a divider line on the bottom (and
+    vice-versa for the lower row).
+    """
+    for i in range(len(top) - 1):
+        ax.add_patch(Polygon(
+            [top[i], top[i + 1], bottom[i + 1], bottom[i]],
+            closed=True,
+            facecolor="white", edgecolor="#2b1e14", linewidth=0.7, zorder=7,
+        ))
 
 
 def _draw_mouth(ax, mood: str) -> None:
@@ -495,6 +563,53 @@ def _draw_mouth(ax, mood: str) -> None:
             facecolor="white", edgecolor="#2b1e14", linewidth=0.8, zorder=7,
         ))
         return
+    if mood == MOOD_TROLL:
+        # Iconic lopsided grin — left corner sharp and lower, right corner
+        # curls up high. Bottom dips deep, slightly off-center toward left.
+        bottom = [
+            (-0.62, -0.18),   # left corner: sharper, lower
+            (-0.48, -0.36),
+            (-0.25, -0.48),
+            (-0.02, -0.50),   # bottom dip just left of center
+            (0.22, -0.46),
+            (0.46, -0.32),
+            (0.66, -0.04),    # right corner: curls up dramatically
+        ]
+        top = [
+            (0.50, -0.06),    # right top — high under the curling corner
+            (0.30, -0.16),
+            (0.10, -0.20),
+            (-0.10, -0.21),
+            (-0.30, -0.21),
+            (-0.50, -0.20),
+        ]
+        ax.add_patch(Polygon(
+            bottom + top, closed=True,
+            facecolor="#2a0d0d", edgecolor="#2b1e14", linewidth=2.4, zorder=6,
+        ))
+        # Upper teeth — top hugs the inner upper lip, bottom dips along a
+        # divider line that runs through the middle of the mouth.
+        upper_top = [
+            (-0.48, -0.20), (-0.30, -0.21), (-0.10, -0.21),
+            (0.10, -0.20),  (0.30, -0.16),  (0.42, -0.11),
+        ]
+        upper_bot = [
+            (-0.48, -0.30), (-0.30, -0.34), (-0.10, -0.34),
+            (0.10, -0.33),  (0.30, -0.29),  (0.42, -0.23),
+        ]
+        _draw_troll_teeth_band(ax, upper_top, upper_bot)
+        # Lower teeth — bottom hugs the inner lower lip, top sits just below
+        # the divider so the dark gap between rows is a thin uniform line.
+        lower_top = [
+            (-0.40, -0.34), (-0.28, -0.37), (-0.10, -0.37),
+            (0.10, -0.36),  (0.28, -0.31),  (0.38, -0.26),
+        ]
+        lower_bot = [
+            (-0.40, -0.39), (-0.28, -0.46), (-0.10, -0.49),
+            (0.10, -0.48),  (0.28, -0.42),  (0.38, -0.34),
+        ]
+        _draw_troll_teeth_band(ax, lower_top, lower_bot)
+        return
     # TONKKA — jaw dropped, tongue out, teeth flashing
     ax.add_patch(Ellipse(
         (0, -0.32), width=0.78, height=0.48,
@@ -520,6 +635,10 @@ def temperature_plot(df, title: str) -> BinaryIO:
     """Render the temperature line + threshold + mood mascot into a PNG BytesIO."""
     max_temp = float(df["temp"].max())
     mood = _mood_for(max_temp)
+    if (mood == MOOD_WARM
+            and max_temp >= TONKKA_THRESHOLD - TROLL_GAP
+            and data.check_history() is None):
+        mood = MOOD_TROLL
 
     fig, ax = plt.subplots(figsize=(10, 6), dpi=200)
     try:
